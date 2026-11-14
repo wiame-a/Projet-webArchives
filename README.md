@@ -1,87 +1,103 @@
-# Archivium : gestion sécurisée des archives numériques
+# Archivium
 
-Projet du module Programmation Web Dynamique (S5, Ingénierie Logicielle, Faculté des Sciences d'Agadir).
+**Plateforme de gestion électronique des archives numériques** : classez, versionnez, validez, partagez et archivez vos documents en toute sécurité.
 
-| Dossier | Contenu |
+Projet n°65 du module *Programmation Web Dynamique* (S5, Ingénierie Logicielle), Faculté des Sciences d'Agadir, Université Ibn Zohr. Réalisé par **TALIB Wiame**.
+
+![Laravel 13](https://img.shields.io/badge/Laravel-13-red) ![React 18](https://img.shields.io/badge/React-18-61dafb) ![Bootstrap 5](https://img.shields.io/badge/Bootstrap-5-7952b3) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479a1)
+
+## Aperçu
+
+| Tableau de bord | Documents et archives |
 | --- | --- |
-| `backend/` | Projet Laravel 13 complet : API REST, Sanctum, migrations, seeders, tests. Le fichier `.env` est fourni (UTF-8 sans BOM). |
-| `frontend/` | Application React 18 (Vite) : Axios, React Router, Bootstrap 5. |
+| ![Tableau de bord](docs/screenshots/1-dashboard.png) | ![Documents et archives](docs/screenshots/2-documents-archives.png) |
+| **Fiche document et versions** | **Journal d'activité et partage** |
+| ![Fiche document](docs/screenshots/3-document-detail.png) | ![Journal et partage](docs/screenshots/4-activity-share.png) |
 
-## Prérequis
+## Fonctionnalités
 
-PHP 8.3 ou plus (extensions `pdo_mysql`, `mbstring`, `fileinfo`, `zip`, `openssl`), Composer, MySQL (XAMPP convient), Node.js 20 ou plus.
+- Authentification par jeton (Laravel Sanctum) : inscription, connexion, déconnexion.
+- Documents avec fichier (PDF, DOCX, XLSX, images, 10 Mo maximum), code unique `ARC-XXXX` et référence interne.
+- **Versionnement sans écrasement** (v1, v2, v3…), numérotation sûre en cas d'envois simultanés.
+- Téléchargement sécurisé : fichiers sur disque privé, accès après contrôle des droits.
+- Recherche multicritère paginée (texte, titre, mots-clés, catégorie, auteur, dates, statut, validation).
+- Partage granulaire en **lecture** ou en **modification**.
+- **Circuit de validation** (En attente, Validé, Rejeté avec motif) tenu par les archivistes.
+- Archivage en lecture seule et restauration.
+- **Journal d'activité** global (archivistes, administrateurs) et historique par document.
+- Tableau de bord : 8 indicateurs dynamiques, recherche rapide, filtre par catégorie.
+- Administration des catégories et des utilisateurs, profil (nom, email, mot de passe).
 
-## Lancer le projet
+## Architecture
 
-Créer la base une seule fois (phpMyAdmin ou client MySQL) : `archives_numeriques`, interclassement `utf8mb4_unicode_ci`.
+```
+Archivium/
+├── backend/    # Laravel 13 : API REST, Sanctum, Policies, migrations, seeders, tests
+├── frontend/   # React 18 + Vite : Axios, React Router, Bootstrap 5
+└── README.md
+```
 
-**Terminal 1, backend**
+Deux programmes indépendants qui échangent du JSON en HTTP. Toutes les règles de sécurité sont dans l'API (Policies et FormRequests) ; le frontend ne fait que masquer des boutons.
 
-```powershell
+## Installation
+
+**Prérequis** : PHP 8.3+ (extensions `pdo_mysql`, `mbstring`, `fileinfo`, `zip`, `openssl`), Composer, MySQL 8, Node.js 20+.
+
+Créer la base une fois : `archives_numeriques`, interclassement `utf8mb4_unicode_ci`.
+
+**Backend**
+
+```bash
 cd backend
 composer install
+cp .env.example .env        # puis régler DB_USERNAME / DB_PASSWORD
+php artisan key:generate
 php artisan migrate:fresh --seed
-php artisan serve
+php artisan serve           # http://localhost:8000
 ```
 
-`composer install` télécharge le dossier `vendor/` (le framework Laravel) : c'est la seule étape qui demande Internet côté backend, et elle n'est à faire qu'une fois.
+**Frontend**
 
-**Terminal 2, frontend**
-
-```powershell
+```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                 # http://localhost:5173
 ```
 
-Ouvrir http://localhost:5173. L'API répond sur http://localhost:8000/api.
+Dans `php.ini`, régler `upload_max_filesize = 12M` et `post_max_size = 12M` (limite PHP par défaut : 2 Mo).
 
-## Comptes de démonstration (mot de passe : `password`)
+## Comptes de démonstration
+
+Mot de passe de tous les comptes : `password`.
 
 | Email | Rôle |
 | --- | --- |
 | `admin@archives.test` | Administrateur |
+| `archiviste@archives.test`, `karim@archives.test` | Archiviste |
 | `user@archives.test` | Utilisateur |
-| `sara@archives.test` | Utilisateur (pour tester le partage) |
+| `sara@archives.test`, `youssef@archives.test`, `nadia@archives.test` | Utilisateur |
 
-## Réglages importants
+Le seeder crée 7 comptes, 6 catégories et 15 documents avec versions, partages et journal d'activité.
 
-- **Limite d'envoi PHP** : dans `php.ini`, `upload_max_filesize = 12M` et `post_max_size = 12M` (le sujet impose 10 Mo, PHP limite à 2 Mo par défaut).
-- **Clé de l'application** : `backend/.env` contient déjà une `APP_KEY`. Pour en générer une autre : `php artisan key:generate`.
-- **Modifier `.env`** : toujours en UTF-8 sans BOM (VS Code : barre d'état, « UTF-8 »). Ne pas utiliser `echo ... >> .env` sous PowerShell 5 (écrit en UTF-16).
-- Après toute modification de `.env` : `php artisan config:clear`.
+## Tests
 
-## Tests du backend
-
-```powershell
+```bash
 cd backend
 php artisan test
 ```
 
-Les tests utilisent SQLite en mémoire (extension `pdo_sqlite` activée dans `php.ini`).
+Tests fonctionnels Laravel sur SQLite en mémoire : authentification, catégories, documents, administration, champs d'archivage, circuit de validation, profil et journal d'activité.
 
-## Routes principales de l'API
+## Droits d'accès
 
-| Méthode | Route | Accès |
-| --- | --- | --- |
-| POST | `/api/register`, `/api/login` | Public |
-| POST | `/api/logout`, GET `/api/me`, `/api/dashboard` | Connecté |
-| GET | `/api/categories` | Connecté |
-| POST, PUT, DELETE | `/api/categories[/{id}]` | Admin |
-| GET, POST | `/api/documents` (+ `/api/documents/search`) | Connecté |
-| GET, PUT, DELETE | `/api/documents/{id}` | Selon les droits |
-| PATCH | `/api/documents/{id}/archive`, `/restore` | Propriétaire ou admin |
-| GET, POST | `/api/documents/{id}/versions` | Selon les droits |
-| GET | `/api/documents/{id}/versions/{version}/download` | Selon les droits |
-| GET, POST, DELETE | `/api/documents/{id}/permissions` | Propriétaire ou admin |
-| GET, PUT, DELETE | `/api/users[/{id}]` | Admin |
+| Action | Propriétaire / Admin | Partage « modification » | Partage « lecture » |
+| --- | --- | --- | --- |
+| Voir, télécharger | Oui | Oui | Oui |
+| Modifier, ajouter une version | Oui, si non archivé | Oui, si non archivé | Non |
+| Supprimer, partager, archiver | Oui | Non | Non |
 
-## Dépannage
+Les archivistes peuvent en plus valider, rejeter, rouvrir, archiver et restaurer tout document, et consulter le journal d'activité.
 
-| Symptôme | Piste |
-| --- | --- |
-| « Malformed UTF-8 characters » | `backend/.env` ou un fichier PHP enregistré en ANSI ou UTF-16 : le réenregistrer en UTF-8 sans BOM |
-| « Impossible de joindre le serveur » | `php artisan serve` est-il lancé ? |
-| Erreur CORS | `FRONTEND_URL` dans `backend/.env` doit valoir `http://localhost:5173`, puis `php artisan config:clear` |
-| Fichier refusé sous 10 Mo | `upload_max_filesize` et `post_max_size` dans `php.ini` |
-| `could not find driver` en test | Activer `pdo_sqlite` dans `php.ini` |
+## Licence
+
+Projet académique.
