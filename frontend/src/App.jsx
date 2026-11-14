@@ -7,8 +7,10 @@ import Dashboard from './pages/Dashboard'
 import DocumentDetail from './pages/DocumentDetail'
 import DocumentEdit from './pages/DocumentEdit'
 import DocumentNew from './pages/DocumentNew'
+import Activity from './pages/Activity'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
+import Profile from './pages/Profile'
 import Register from './pages/Register'
 import Users from './pages/Users'
 
@@ -29,6 +31,14 @@ export default function App() {
           <Route path="documents/:id/edit" element={<DocumentEdit />} />
           <Route path="search" element={<DocumentsBrowser mode="search" />} />
           <Route path="archives" element={<DocumentsBrowser mode="archives" />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
+      </Route>
+
+      {/* Journal d'activité : administrateurs et archivistes */}
+      <Route element={<ProtectedRoute roles={['admin', 'archiviste']} />}>
+        <Route element={<Layout />}>
+          <Route path="activity" element={<Activity />} />
         </Route>
       </Route>
 

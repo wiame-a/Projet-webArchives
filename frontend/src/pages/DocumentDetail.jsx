@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { documentsApi } from '../api/services'
+import { activityApi, documentsApi } from '../api/services'
 import { downloadVersion } from '../utils/download'
 import { parseApiError } from '../utils/errors'
 import { fileIcon, formatBytes, formatDate, splitKeywords, validateFile } from '../utils/format'
 import { useToast } from '../context/ToastContext'
+import ActivityFeed from '../components/ActivityFeed'
 import ConfirmModal from '../components/ConfirmModal'
 import ErrorAlert from '../components/ErrorAlert'
 import FileDropzone from '../components/FileDropzone'
+import RejectModal from '../components/RejectModal'
 import ShareModal from '../components/ShareModal'
 import Spinner from '../components/Spinner'
 import { RightBadge, StatusBadge } from '../components/StatusBadge'
@@ -23,6 +25,9 @@ export default function DocumentDetail() {
   const [confirm, setConfirm] = useState(null) // 'delete' | 'archive' | 'restore'
   const [busy, setBusy] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [activity, setActivity] = useState([])
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectError, setRejectError] = useState('')
   usePageTitle(doc?.titre ?? 'Document')
 
   const load = useCallback(async () => {
@@ -34,6 +39,20 @@ export default function DocumentDetail() {
       setError(parseApiError(err).message)
     }
   }, [id])
+
+  // Historique du document (propriétaire, archivistes, administrateurs).
+  const canSeeActivity = Boolean(doc?.can?.activity)
+  useEffect(() => {
+    if (!canSeeActivity) return undefined
+    let active = true
+    activityApi
+      .forDocument(id)
+      .then((res) => active && setActivity(res.data.data))
+      .catch(() => active && setActivity([]))
+    return () => {
+      active = false
+    }
+  }, [id, canSeeActivity, doc?.updated_at, doc?.validation, doc?.versions?.length])
 
   useEffect(() => {
     let active = true
@@ -71,11 +90,35 @@ export default function DocumentDetail() {
         await documentsApi.restore(doc.id)
         notify('Document restauré.')
       }
+      if (confirm === 'validate') {
+        await documentsApi.validate(doc.id)
+        notify('Document validé.')
+      }
+      if (confirm === 'reopen') {
+        await documentsApi.reopen(doc.id)
+        notify('Document remis en attente de validation.')
+      }
       setConfirm(null)
       await load()
     } catch (err) {
       notify(parseApiError(err).message, 'error')
       setConfirm(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const reject = async (motif) => {
+    setBusy(true)
+    setRejectError('')
+    try {
+      await documentsApi.reject(doc.id, motif)
+      notify('Document rejeté.')
+      setRejecting(false)
+      await load()
+    } catch (err) {
+      const e = parseApiError(err)
+      setRejectError(e.fields?.motif ?? e.message)
     } finally {
       setBusy(false)
     }
@@ -96,6 +139,8 @@ export default function DocumentDetail() {
   const confirmTexts = {
     delete: { title: 'Supprimer le document', confirmLabel: 'Supprimer', danger: true, message: 'Le document, toutes ses versions et ses partages seront définitivement supprimés.' },
     archive: { title: 'Archiver le document', confirmLabel: 'Archiver', danger: false, message: 'Le document passera en lecture seule (consultation et téléchargement restent possibles).' },
+    validate: { title: 'Valider le document', confirmLabel: 'Valider', danger: false, message: 'Le document sera marqué « Validé ». Vous pourrez revenir sur cette décision.' },
+    reopen: { title: 'Remettre en attente', confirmLabel: 'Remettre en attente', danger: false, message: 'La décision actuelle sera annulée : le document repassera « En attente » de validation.' },
     restore: { title: 'Restaurer le document', confirmLabel: 'Restaurer', danger: false, message: 'Le document redeviendra actif et modifiable.' },
   }
 
@@ -113,7 +158,7 @@ export default function DocumentDetail() {
           <div>
             <h1 className="page-title">{doc.titre}</h1>
             <div className="d-flex flex-wrap gap-2 align-items-center mt-1">
-              <StatusBadge statut={doc.statut} />
+              <StatusBadge status={doc.status} statut={doc.statut} />
               <RightBadge right={doc.my_right} />
             </div>
           </div>
@@ -159,6 +204,45 @@ export default function DocumentDetail() {
         </div>
       </div>
 
+      {doc.validation === 'rejete' && !archived && (
+        <div className="decision-banner rejected mb-3" role="alert">
+          <i className="bi bi-x-octagon-fill" />
+          <div>
+            <strong>Document rejeté</strong>
+            {doc.validated_by?.name && <> par {doc.validated_by.name}</>}
+            {doc.validated_at && <> le {formatDate(doc.validated_at, true)}</>}
+            <div>Motif : {doc.motif_rejet || 'non précisé.'}</div>
+            <div className="small">Ajoutez une nouvelle version corrigée : le document repassera en validation.</div>
+          </div>
+        </div>
+      )}
+      {doc.validation === 'valide' && !archived && doc.validated_by && (
+        <div className="decision-banner approved mb-3" role="status">
+          <i className="bi bi-patch-check-fill" />
+          <div>Validé par {doc.validated_by.name}{doc.validated_at && <> le {formatDate(doc.validated_at, true)}</>}.</div>
+        </div>
+      )}
+      {doc.can.validate && !archived && (
+        <div className="validation-bar mb-3" role="group" aria-label="Validation du document">
+          <span className="validation-bar-label"><i className="bi bi-clipboard-check me-2" />Validation</span>
+          {doc.validation !== 'valide' && (
+            <button type="button" className="btn btn-success btn-sm" onClick={() => setConfirm('validate')}>
+              <i className="bi bi-check-lg me-1" />Valider
+            </button>
+          )}
+          {doc.validation !== 'rejete' && (
+            <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => { setRejectError(''); setRejecting(true) }}>
+              <i className="bi bi-x-lg me-1" />Rejeter
+            </button>
+          )}
+          {doc.validation !== 'en_attente' && (
+            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setConfirm('reopen')}>
+              <i className="bi bi-arrow-counterclockwise me-1" />Remettre en attente
+            </button>
+          )}
+        </div>
+      )}
+
       {archived && (
         <div className="archive-banner mb-3" role="status">
           <i className="bi bi-lock-fill" />
@@ -174,6 +258,18 @@ export default function DocumentDetail() {
           <section className="panel panel-body h-100">
             <h2 className="panel-title"><i className="bi bi-info-circle" /> Informations</h2>
             <dl className="meta-list">
+              {doc.code && (
+                <>
+                  <dt>Code</dt>
+                  <dd><span className="doc-code mt-0">{doc.code}</span></dd>
+                </>
+              )}
+              {doc.reference && (
+                <>
+                  <dt>Référence</dt>
+                  <dd>{doc.reference}</dd>
+                </>
+              )}
               <dt>Catégorie</dt>
               <dd>{doc.category?.nom ?? '—'}</dd>
               <dt>Auteur</dt>
@@ -240,6 +336,19 @@ export default function DocumentDetail() {
           </section>
         </div>
 
+        {doc.can.activity && (
+          <div className="col-12">
+            <section className="panel panel-body">
+              <h2 className="panel-title"><i className="bi bi-clock-history" /> Activité récente</h2>
+              {activity.length ? (
+                <ActivityFeed items={activity} />
+              ) : (
+                <p className="text-muted mb-0">Aucune activité enregistrée.</p>
+              )}
+            </section>
+          </div>
+        )}
+
         {doc.can.share && (
           <div className="col-12">
             <section className="panel panel-body">
@@ -269,6 +378,10 @@ export default function DocumentDetail() {
             if (changed) load()
           }}
         />
+      )}
+
+      {rejecting && (
+        <RejectModal busy={busy} error={rejectError} onSubmit={reject} onCancel={() => setRejecting(false)} />
       )}
 
       {confirm && (

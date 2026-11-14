@@ -9,6 +9,8 @@ import ErrorAlert from '../components/ErrorAlert'
 import Pagination from '../components/Pagination'
 import Spinner from '../components/Spinner'
 
+const ROLE_LABELS = { admin: 'administrateur', archiviste: 'archiviste', user: 'utilisateur' }
+
 export default function Users() {
   const { user: me } = useAuth()
   const notify = useToast()
@@ -41,7 +43,7 @@ export default function Users() {
   const changeRole = async (target, role) => {
     try {
       await usersApi.update(target.id, { role })
-      notify(`Rôle de ${target.name} : ${role === 'admin' ? 'administrateur' : 'utilisateur'}.`)
+      notify(`Rôle de ${target.name} : ${ROLE_LABELS[role] ?? role}.`)
       setReloadKey((k) => k + 1)
     } catch (err) {
       notify(parseApiError(err).message, 'error')
@@ -111,6 +113,7 @@ export default function Users() {
                           onChange={(e) => changeRole(u, e.target.value)}
                         >
                           <option value="user">Utilisateur</option>
+                          <option value="archiviste">Archiviste</option>
                           <option value="admin">Administrateur</option>
                         </select>
                       </td>

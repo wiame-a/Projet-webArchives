@@ -9,12 +9,13 @@ export default function AuthShell({ title, subtitle, children }) {
           Archivium <span className="brand-version">v1.0</span>
         </h1>
         <p className="mb-0" style={{ color: 'rgba(255,255,255,.72)', fontSize: '1.05rem' }}>
-          Classez, retrouvez et conservez vos documents en toute sécurité.
+          Plateforme de gestion électronique des documents : classez, validez et conservez vos archives en toute sécurité.
         </p>
         <ul className="list-unstyled mb-0 mt-2">
           <li><i className="bi bi-folder2-open" />Classement par catégories et mots-clés</li>
           <li><i className="bi bi-clock-history" />Historique complet des versions</li>
           <li><i className="bi bi-people" />Partage en lecture ou en modification</li>
+          <li><i className="bi bi-patch-check" />Circuit de validation des documents</li>
           <li><i className="bi bi-archive" />Archivage et restauration</li>
         </ul>
       </aside>
