@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ShareDocumentRequest;
 use App\Http\Resources\PermissionResource;
+use App\Models\ActivityLog;
 use App\Models\Document;
 use App\Models\DocumentPermission;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -40,12 +43,20 @@ class DocumentPermissionController extends Controller
             ['droit' => $data['droit']]
         );
 
-        return (new PermissionResource($permission->load('user:id,name,email')))
+        $permission->load('user:id,name,email');
+        ActivityLogger::log(
+            $request->user(),
+            ActivityLog::SHARE_GRANTED,
+            'a partagé le document '.ActivityLogger::label($document).' avec '.$permission->user->name.' ('.($data['droit'] === 'modification' ? 'modification' : 'lecture seule').').',
+            $document
+        );
+
+        return (new PermissionResource($permission))
             ->response()
             ->setStatusCode($permission->wasRecentlyCreated ? 201 : 200);
     }
 
-    public function destroy(Document $document, User $user): Response|JsonResponse
+    public function destroy(Request $request, Document $document, User $user): Response|JsonResponse
     {
         Gate::authorize('share', $document);
 
@@ -54,6 +65,8 @@ class DocumentPermissionController extends Controller
         if ($deleted === 0) {
             return response()->json(['message' => 'Ce document n\'est pas partagé avec cet utilisateur.'], 404);
         }
+
+        ActivityLogger::log($request->user(), ActivityLog::SHARE_REVOKED, 'a retiré l\'accès de '.$user->name.' au document '.ActivityLogger::label($document).'.', $document);
 
         return response()->noContent();
     }

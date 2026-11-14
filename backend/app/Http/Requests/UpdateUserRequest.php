@@ -17,12 +17,12 @@ class UpdateUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_USER])],
+            'role' => ['required', Rule::in(User::ROLES)],
         ];
     }
 
     public function messages(): array
     {
-        return ['role.in' => 'Le rôle doit être "admin" ou "user".'];
+        return ['role.in' => 'Le rôle doit être "admin", "archiviste" ou "user".'];
     }
 }

@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentPermissionController;
+use App\Http\Controllers\Api\DocumentValidationController;
 use App\Http\Controllers\Api\DocumentVersionController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\AddArchiviumHeaders;
 use App\Http\Middleware\ForceJsonResponse;
@@ -26,6 +29,14 @@ Route::middleware([ForceJsonResponse::class, AddArchiviumHeaders::class])->group
         Route::get('me', [AuthController::class, 'me']);
         Route::get('dashboard', DashboardController::class);
 
+        // Mon compte
+        Route::put('profile', [ProfileController::class, 'update']);
+        Route::put('profile/password', [ProfileController::class, 'password']);
+
+        // Journal d'activité : global (gestionnaires) et par document (propriétaire / gestionnaires)
+        Route::get('activity', [ActivityController::class, 'index']);
+        Route::get('documents/{document}/activity', [ActivityController::class, 'forDocument']);
+
         // Utilisateurs : "lookup" pour tous (boîte de partage), le reste réservé aux admins (UserPolicy)
         Route::get('users/lookup', [UserController::class, 'lookup']);
         Route::get('users', [UserController::class, 'index']);
@@ -40,6 +51,11 @@ Route::middleware([ForceJsonResponse::class, AddArchiviumHeaders::class])->group
         Route::apiResource('documents', DocumentController::class);
         Route::patch('documents/{document}/archive', [DocumentController::class, 'archive']);
         Route::patch('documents/{document}/restore', [DocumentController::class, 'restore']);
+
+        // Circuit de validation (administrateur / archiviste)
+        Route::patch('documents/{document}/validate', [DocumentValidationController::class, 'approve']);
+        Route::patch('documents/{document}/reject', [DocumentValidationController::class, 'reject']);
+        Route::patch('documents/{document}/reopen', [DocumentValidationController::class, 'reopen']);
 
         // Versions
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);

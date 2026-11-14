@@ -12,6 +12,8 @@ class CategoryResource extends JsonResource
         return [
             'id' => $this->id,
             'nom' => $this->nom,
+            'code' => $this->code,
+            'couleur' => $this->couleur,
             'description' => $this->description,
             'documents_count' => $this->whenCounted('documents'),
             'created_at' => $this->created_at,

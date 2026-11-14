@@ -29,6 +29,7 @@ class StoreDocumentRequest extends FormRequest
     {
         return [
             'titre' => ['required', 'string', 'max:255'],
+            'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:5000'],
             'mots_cles' => ['nullable', 'string', 'max:255'],
             'category_id' => ['required', 'integer', 'exists:categories,id'],

@@ -7,7 +7,9 @@ use App\Http\Requests\SearchDocumentRequest;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Resources\DocumentResource;
+use App\Models\ActivityLog;
 use App\Models\Document;
+use App\Services\ActivityLogger;
 use App\Services\DocumentVersionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -37,6 +39,7 @@ class DocumentController extends Controller
             ->with([
                 'category',
                 'owner:id,name',
+                'validator:id,name',
                 'latestVersion',
                 // On ne charge que le partage de l'utilisateur courant (calcul du droit sans N+1).
                 'permissions' => fn ($q) => $q->where('user_id', $user->id),
@@ -48,6 +51,8 @@ class DocumentController extends Controller
                 $like = '%'.$term.'%';
                 $q->where(fn (Builder $w) => $w
                     ->where('titre', 'like', $like)
+                    ->orWhere('code', 'like', $like)
+                    ->orWhere('reference', 'like', $like)
                     ->orWhere('description', 'like', $like)
                     ->orWhere('mots_cles', 'like', $like));
             })
@@ -61,6 +66,7 @@ class DocumentController extends Controller
             ->when($f['category_id'] ?? null, fn (Builder $q, $v) => $q->where('category_id', $v))
             ->when($f['user_id'] ?? null, fn (Builder $q, $v) => $q->where('documents.user_id', $v))
             ->when($f['statut'] ?? null, fn (Builder $q, $v) => $q->where('statut', $v))
+            ->when($f['validation'] ?? null, fn (Builder $q, $v) => $q->where('validation', $v))
             ->when($f['date_debut'] ?? null, fn (Builder $q, $v) => $q->whereDate('documents.created_at', '>=', $v))
             ->when($f['date_fin'] ?? null, fn (Builder $q, $v) => $q->whereDate('documents.created_at', '<=', $v))
             ->when(($f['portee'] ?? null) === 'mes', fn (Builder $q) => $q->where('documents.user_id', $user->id))
@@ -81,7 +87,7 @@ class DocumentController extends Controller
         $user = $request->user();
 
         $document = DB::transaction(function () use ($request, $user) {
-            $document = new Document($request->safe()->only(['titre', 'description', 'mots_cles', 'category_id']));
+            $document = new Document($request->safe()->only(['titre', 'reference', 'description', 'mots_cles', 'category_id']));
             $document->user_id = $user->id;
             $document->statut = Document::STATUT_ACTIF;
             $document->save();
@@ -92,7 +98,9 @@ class DocumentController extends Controller
             return $document;
         });
 
-        $document->load(['category', 'owner:id,name', 'latestVersion']);
+        ActivityLogger::log($user, ActivityLog::DOCUMENT_CREATED, 'a créé le document '.ActivityLogger::label($document).'.', $document);
+
+        $document->load(['category', 'owner:id,name', 'validator:id,name', 'latestVersion']);
 
         return (new DocumentResource($document))->response()->setStatusCode(201);
     }
@@ -101,7 +109,7 @@ class DocumentController extends Controller
     {
         Gate::authorize('view', $document);
 
-        $document->load(['category', 'owner:id,name', 'latestVersion', 'versions.author:id,name']);
+        $document->load(['category', 'owner:id,name', 'validator:id,name', 'latestVersion', 'versions.author:id,name']);
 
         // La liste complète des partages n'est visible que par ceux qui peuvent partager.
         if (Gate::forUser($request->user())->allows('share', $document)) {
@@ -119,21 +127,27 @@ class DocumentController extends Controller
 
         $document->update($request->validated());
 
-        return new DocumentResource($document->load(['category', 'owner:id,name', 'latestVersion']));
+        ActivityLogger::log($request->user(), ActivityLog::DOCUMENT_UPDATED, 'a modifié les informations du document '.ActivityLogger::label($document).'.', $document);
+
+        return new DocumentResource($document->load(['category', 'owner:id,name', 'validator:id,name', 'latestVersion']));
     }
 
-    public function destroy(Document $document): Response
+    public function destroy(Request $request, Document $document): Response
     {
         Gate::authorize('delete', $document);
 
         $id = $document->id;
+        $label = ActivityLogger::label($document); // à capturer avant la suppression
         $document->delete(); // les versions et partages partent en cascade (clés étrangères)
         $this->versions->deleteFiles($id);
+
+        // Sans lien vers le document (il n'existe plus) : la phrase garde son titre et son code.
+        ActivityLogger::log($request->user(), ActivityLog::DOCUMENT_DELETED, 'a supprimé le document '.$label.'.');
 
         return response()->noContent();
     }
 
-    public function archive(Document $document): JsonResponse|DocumentResource
+    public function archive(Request $request, Document $document): JsonResponse|DocumentResource
     {
         Gate::authorize('archive', $document);
 
@@ -145,10 +159,12 @@ class DocumentController extends Controller
         $document->archived_at = now();
         $document->save();
 
-        return new DocumentResource($document->load(['category', 'owner:id,name', 'latestVersion']));
+        ActivityLogger::log($request->user(), ActivityLog::DOCUMENT_ARCHIVED, 'a archivé le document '.ActivityLogger::label($document).'.', $document);
+
+        return new DocumentResource($document->load(['category', 'owner:id,name', 'validator:id,name', 'latestVersion']));
     }
 
-    public function restore(Document $document): JsonResponse|DocumentResource
+    public function restore(Request $request, Document $document): JsonResponse|DocumentResource
     {
         Gate::authorize('restore', $document);
 
@@ -160,6 +176,8 @@ class DocumentController extends Controller
         $document->archived_at = null;
         $document->save();
 
-        return new DocumentResource($document->load(['category', 'owner:id,name', 'latestVersion']));
+        ActivityLogger::log($request->user(), ActivityLog::DOCUMENT_RESTORED, 'a restauré le document '.ActivityLogger::label($document).'.', $document);
+
+        return new DocumentResource($document->load(['category', 'owner:id,name', 'validator:id,name', 'latestVersion']));
     }
 }

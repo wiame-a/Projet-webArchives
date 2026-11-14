@@ -17,12 +17,13 @@ class SearchDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'q' => ['nullable', 'string', 'max:255'],           // texte libre : titre, description, mots-clés
+            'q' => ['nullable', 'string', 'max:255'],           // texte libre : code, référence, titre, description, mots-clés
             'titre' => ['nullable', 'string', 'max:255'],
             'mots_cles' => ['nullable', 'string', 'max:255'],   // plusieurs mots séparés par des virgules (ET)
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'], // auteur
             'statut' => ['nullable', Rule::in([Document::STATUT_ACTIF, Document::STATUT_ARCHIVE])],
+            'validation' => ['nullable', Rule::in(Document::VALIDATIONS)],
             'portee' => ['nullable', Rule::in(['mes', 'partages'])],
             'date_debut' => ['nullable', 'date'],
             'date_fin' => ['nullable', 'date', 'after_or_equal:date_debut'],
