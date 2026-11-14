@@ -91,6 +91,7 @@ export default function DocumentTable({ documents, onChanged }) {
                       <Link to={`/documents/${doc.id}`} className="doc-title">
                         {doc.titre}
                       </Link>
+                      {doc.code && <div className="doc-code">{doc.code}{doc.reference ? ` · ${doc.reference}` : ''}</div>}
                       <div>
                         {splitKeywords(doc.mots_cles).map((k) => (
                           <span className="kw" key={k}>
@@ -114,7 +115,7 @@ export default function DocumentTable({ documents, onChanged }) {
                   <span className="badge badge-version">v{doc.latest_version?.numero_version ?? 1}</span>
                 </td>
                 <td>
-                  <StatusBadge statut={doc.statut} />
+                  <StatusBadge status={doc.status} statut={doc.statut} />
                 </td>
                 <td className="text-nowrap">{formatDate(doc.created_at)}</td>
                 <td className="text-end text-nowrap">

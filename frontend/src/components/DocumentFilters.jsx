@@ -111,6 +111,15 @@ export default function DocumentFilters({ mode, params, categories, onApply }) {
               </select>
             </div>
             <div className="col-md-4">
+              <label className="form-label" htmlFor="f-validation">Validation</label>
+              <select id="f-validation" className="form-select" value={form.validation ?? ''} onChange={set('validation')}>
+                <option value="">Tous les états</option>
+                <option value="valide">Validé</option>
+                <option value="en_attente">En attente</option>
+                <option value="rejete">Rejeté</option>
+              </select>
+            </div>
+            <div className="col-md-4">
               <label className="form-label" htmlFor="f-portee">Portée</label>
               <select id="f-portee" className="form-select" value={form.portee ?? ''} onChange={set('portee')}>
                 {SCOPES.map((s) => (

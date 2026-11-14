@@ -16,11 +16,11 @@ export default function ProtectedRoute({ roles }) {
 
   if (roles && !roles.includes(user.role)) {
     return (
-      <div className="container page">
+      <div className="page">
         <div className="panel panel-body text-center py-5">
           <i className="bi bi-shield-lock display-5 text-muted" />
           <h2 className="h4 mt-3">Accès refusé</h2>
-          <p className="text-muted mb-0">Cette section est réservée aux administrateurs.</p>
+          <p className="text-muted mb-0">{roles.includes('archiviste') ? 'Cette section est réservée aux administrateurs et aux archivistes.' : 'Cette section est réservée aux administrateurs.'}</p>
         </div>
       </div>
     )

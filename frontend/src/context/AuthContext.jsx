@@ -64,9 +64,21 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Après une modification du profil : met à jour l'utilisateur affiché partout.
+  const updateUser = useCallback((next) => setUser((current) => ({ ...current, ...next })), [])
+
   const value = useMemo(
-    () => ({ user, loading, isAdmin: user?.role === 'admin', login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({
+      user,
+      loading,
+      isAdmin: user?.role === 'admin',
+      isStaff: user?.role === 'admin' || user?.role === 'archiviste',
+      login,
+      register,
+      logout,
+      updateUser,
+    }),
+    [user, loading, login, register, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

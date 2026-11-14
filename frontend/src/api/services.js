@@ -27,12 +27,25 @@ export const documentsApi = {
   remove: (id) => api.delete(`/documents/${id}`),
   archive: (id) => api.patch(`/documents/${id}/archive`),
   restore: (id) => api.patch(`/documents/${id}/restore`),
+  validate: (id) => api.patch(`/documents/${id}/validate`),
+  reject: (id, motif) => api.patch(`/documents/${id}/reject`, { motif }),
+  reopen: (id) => api.patch(`/documents/${id}/reopen`),
   addVersion: (id, formData, onUploadProgress) =>
     api.post(`/documents/${id}/versions`, formData, { onUploadProgress }),
   downloadVersion: (documentId, versionId) =>
     api.get(`/documents/${documentId}/versions/${versionId}/download`, { responseType: 'blob' }),
   share: (id, data) => api.post(`/documents/${id}/permissions`, data),
   unshare: (id, userId) => api.delete(`/documents/${id}/permissions/${userId}`),
+}
+
+export const profileApi = {
+  update: (data) => api.put('/profile', data),
+  changePassword: (data) => api.put('/profile/password', data),
+}
+
+export const activityApi = {
+  list: (params, signal) => api.get('/activity', { params, signal }),
+  forDocument: (id) => api.get(`/documents/${id}/activity`),
 }
 
 export const usersApi = {

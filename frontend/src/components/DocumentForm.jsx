@@ -24,6 +24,7 @@ export default function DocumentForm({ document: existing = null }) {
   const [loadingCats, setLoadingCats] = useState(true)
   const [values, setValues] = useState({
     titre: existing?.titre ?? '',
+    reference: existing?.reference ?? '',
     description: existing?.description ?? '',
     mots_cles: existing?.mots_cles ?? '',
     category_id: existing?.category?.id ?? '',
@@ -74,6 +75,7 @@ export default function DocumentForm({ document: existing = null }) {
       if (isEdit) {
         await documentsApi.update(existing.id, {
           titre: values.titre.trim(),
+          reference: values.reference.trim(),
           description: values.description,
           mots_cles: values.mots_cles,
           category_id: values.category_id,
@@ -83,6 +85,7 @@ export default function DocumentForm({ document: existing = null }) {
       } else {
         const data = new FormData()
         data.append('titre', values.titre.trim())
+        data.append('reference', values.reference.trim())
         data.append('description', values.description)
         data.append('mots_cles', values.mots_cles)
         data.append('category_id', values.category_id)
@@ -116,6 +119,12 @@ export default function DocumentForm({ document: existing = null }) {
           <label className="form-label fw-semibold" htmlFor="titre">Titre *</label>
           <input id="titre" className={`form-control ${invalid('titre')}`} value={values.titre} onChange={set('titre')} maxLength={255} />
           <div className="invalid-feedback">{fieldErrors.titre}</div>
+        </div>
+
+        <div className="col-12 col-md-6">
+          <label className="form-label fw-semibold" htmlFor="reference">Référence interne</label>
+          <input id="reference" className={`form-control ${invalid('reference')}`} value={values.reference} onChange={set('reference')} maxLength={100} placeholder="ex. RH/2026/014" />
+          <div className="invalid-feedback">{fieldErrors.reference}</div>
         </div>
 
         <div className="col-md-6">
