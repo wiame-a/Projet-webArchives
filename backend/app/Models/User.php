@@ -13,7 +13,10 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     public const ROLE_ADMIN = 'admin';
+    public const ROLE_ARCHIVISTE = 'archiviste';
     public const ROLE_USER = 'user';
+
+    public const ROLES = [self::ROLE_ADMIN, self::ROLE_ARCHIVISTE, self::ROLE_USER];
 
     /**
      * Le rôle n'est volontairement PAS mass-assignable : personne ne peut
@@ -34,6 +37,17 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isArchiviste(): bool
+    {
+        return $this->role === self::ROLE_ARCHIVISTE;
+    }
+
+    /** Administrateur ou archiviste : profils « gestionnaires » de la GED. */
+    public function isStaff(): bool
+    {
+        return $this->isAdmin() || $this->isArchiviste();
     }
 
     public function documents(): HasMany
